@@ -16,22 +16,21 @@ data Cont =
   | Rator_Cont Exp Env Cont Cont
   | Rand_Cont ExpVal Cont Cont
   | Unop_Arg_Cont UnaryOp Cont Cont
-  | Try_Cont Identifier Exp Env Cont Cont
+  | Try_Cont Identifier Exp Env Cont
   | Raise1_Cont Cont Cont
-  | Exn_Cont Cont Cont
 
-getExnCont :: Cont -> Cont
-getExnCont End_Cont = End_Cont
-getExnCont (Let_Exp_Cont x body env next_cont exn_cont) = exn_cont
-getExnCont (If_Test_Cont exp2 exp3 env next_cont exn_cont) = exn_cont
-getExnCont (Diff1_Cont exp env next_cont exn_cont) = exn_cont
-getExnCont (Diff2_Cont val1 next_cont exn_cont) = exn_cont
-getExnCont (Rator_Cont exp env next_cont exn_cont) = exn_cont
-getExnCont (Rand_Cont val1 next_cont exn_cont) = exn_cont
-getExnCont (Unop_Arg_Cont op next_cont exn_cont) = exn_cont
-getExnCont (Try_Cont x exp env next_cont exn_cont) = exn_cont
-getExnCont (Raise1_Cont next_cont exn_cont) = exn_cont
-getExnCont (Exn_Cont next_cont exn_cont) = exn_cont
+
+getClosestHandler :: Cont -> Cont
+getClosestHandler End_Cont = End_Cont
+getClosestHandler (Let_Exp_Cont x body env next_cont exn_cont) = exn_cont
+getClosestHandler (If_Test_Cont exp2 exp3 env next_cont exn_cont) = exn_cont
+getClosestHandler (Diff1_Cont exp env next_cont exn_cont) = exn_cont
+getClosestHandler (Diff2_Cont val1 next_cont exn_cont) = exn_cont
+getClosestHandler (Rator_Cont exp env next_cont exn_cont) = exn_cont
+getClosestHandler (Rand_Cont val1 next_cont exn_cont) = exn_cont
+getClosestHandler (Unop_Arg_Cont op next_cont exn_cont) = exn_cont
+getClosestHandler (Try_Cont x exp env cont) = (Try_Cont x exp env cont)
+getClosestHandler (Raise1_Cont next_cont exn_cont) = exn_cont
 
 
 apply_cont :: Cont -> ExpVal -> FinalAnswer
@@ -63,19 +62,17 @@ apply_cont (Rand_Cont ratorVal next_cont exn_cont) randVal =
   let proc = expval_proc ratorVal in
     apply_procedure_k proc randVal next_cont
 
-apply_cont (Try_Cont var handler_exp env next_cont exn_cont) val =
-  apply_cont next_cont val
+apply_cont (Try_Cont var handler_exp env cont) val =
+  apply_cont cont val
                            
 apply_cont (Raise1_Cont next_cont exn_cont) val =
   apply_handler val exn_cont
 
-apply_cont (Exn_Cont next_cont exn_cont) val =
-  apply_cont next_cont val
 
 
 apply_handler :: ExpVal -> Cont -> FinalAnswer
-apply_handler val (Try_Cont var handler_exp env next_cont exn_cont) =
-  value_of_k handler_exp (extend_env var val env) (Exn_Cont next_cont exn_cont)
+apply_handler val (Try_Cont var handler_exp env cont) =
+  value_of_k handler_exp (extend_env var val env) cont
 
 apply_handler val (End_Cont) =
   error ("Uncaught exception: " ++ show val)
@@ -119,16 +116,16 @@ value_of_k (Var_Exp var) env cont =
   apply_cont cont (apply_env env var)
 
 value_of_k (Diff_Exp exp1 exp2) env cont =
-  value_of_k exp1 env (Diff1_Cont exp2 env cont (getExnCont cont))
+  value_of_k exp1 env (Diff1_Cont exp2 env cont (getClosestHandler cont))
 
 value_of_k (Unary_Exp op exp1) env cont =
-  value_of_k exp1 env (Unop_Arg_Cont op cont (getExnCont cont))
+  value_of_k exp1 env (Unop_Arg_Cont op cont (getClosestHandler cont))
   
 value_of_k (If_Exp exp1 exp2 exp3) env cont =
-  value_of_k exp1 env (If_Test_Cont exp2 exp3 env cont (getExnCont cont))
+  value_of_k exp1 env (If_Test_Cont exp2 exp3 env cont (getClosestHandler cont))
 
 value_of_k (Let_Exp var exp1 body) env cont =
-  value_of_k exp1 env (Let_Exp_Cont var body env cont (getExnCont cont))
+  value_of_k exp1 env (Let_Exp_Cont var body env cont (getClosestHandler cont))
 
 value_of_k (Letrec_Exp proc_name bound_var proc_body letrec_body) env cont =
   value_of_k letrec_body (extend_env_rec proc_name bound_var proc_body env) cont
@@ -137,13 +134,13 @@ value_of_k (Proc_Exp var body) env cont =
   apply_cont cont (Proc_Val (procedure var body env))
 
 value_of_k (Call_Exp rator rand) env cont =
-  value_of_k rator env (Rator_Cont rand env cont (getExnCont cont))
+  value_of_k rator env (Rator_Cont rand env cont (getClosestHandler cont))
 
 value_of_k (Try_Exp exp var handler_exp) env cont =
-  value_of_k exp env (Try_Cont var handler_exp env cont (Try_Cont var handler_exp env cont (getExnCont cont)))
+  value_of_k exp env (Try_Cont var handler_exp env cont)
 
 value_of_k (Raise_Exp exp) env cont =
-  value_of_k exp env (Raise1_Cont cont (getExnCont cont))
+  value_of_k exp env (Raise1_Cont cont (getClosestHandler cont))
 
 --
 value_of_program :: Exp -> ExpVal
