@@ -47,7 +47,7 @@
 ### Chapter 7: Types
 
  - [CHECKED: A type-checked language (based on LETREC)](https://docs.google.com/presentation/d/1Jl8IkUpaIn5Mtmd6kKeSiBLpvWwO6RjMoMq4brT8Oc8/edit?usp=sharing)
- - INFERRED: A language with type inference (based on CHECKED)
+ - [INFERRED: A language with type inference (based on CHECKED)](https://docs.google.com/presentation/d/1etasdRLpqwFuAAP117hdHzrZxeYibe3o8TJ6Px4HSlA/edit?usp=sharing)
 
 ### Chapter 8: Modules
 

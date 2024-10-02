@@ -64,10 +64,10 @@ parserSpec = ParserSpec
     ],
     
     baseDir        = "./",
-    actionTblFile  = "action_table_checkedlang.txt",
-    gotoTblFile    = "goto_table_checkedlang.txt",
-    grammarFile    = "prod_rules_checkedlang.txt",
-    parserSpecFile = "mygrammar_checkedlang.grm",
+    actionTblFile  = "action_table_inferredlang.txt",
+    gotoTblFile    = "goto_table_inferredlang.txt",
+    grammarFile    = "prod_rules_inferredlang.txt",
+    parserSpecFile = "mygrammar_inferredlang.grm",
     genparserexe   = "yapb-exe"
   }
 

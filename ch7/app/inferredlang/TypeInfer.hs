@@ -16,7 +16,7 @@ otype_to_type (AType ty) = _Right ty
 
 fresh_tyvar = 
     do newtyvar <- _fresh 
-       return (TyVar newtyvar)
+       _Right (TyVar newtyvar)
 
 --
 type_of_program :: Exp -> Either String (Type, Subst)
@@ -100,7 +100,7 @@ unifier ty1' ty2' subst expr =
   else if isTyFun ty1 && isTyFun ty2 then 
         do subst1 <- unifier (argType ty1) (argType ty2) subst expr 
            subst2 <- unifier (resType ty1) (resType ty2) subst1 expr 
-           return subst2
+           _Right subst2
   else _Left ("Unification failure: " ++ show ty1 ++ ", " ++ show ty2 ++
               "\n  in " ++ show expr)
 
