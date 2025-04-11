@@ -116,7 +116,6 @@ executable rpclang-exe
       Lexer
       MainUtil
       Parser
-      ProcLang
       Token
       Paths_ch3
   hs-source-dirs:
@@ -220,7 +219,6 @@ test-suite rpclang-test
       Main
       MainUtil
       Parser
-      ProcLang
       Token
       Paths_ch3
   hs-source-dirs:
