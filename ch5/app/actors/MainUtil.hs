@@ -22,7 +22,8 @@ parser text = do
        (fromToken (endOfToken lexerSpec))
 
 runProg text bool = do 
-  expression <- parser text
+  pet <- parser text
+  let expression = expFrom pet
 
   if bool then putStrLn (show expression) else return ()
   

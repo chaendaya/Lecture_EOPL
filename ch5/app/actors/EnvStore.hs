@@ -163,3 +163,12 @@ readymsg :: ActorState -> Maybe (ExpVal, ActorState)
 readymsg (current, q, actorSpace) 
   | isempty q = Nothing 
   | otherwise = let (v, q1) = dequeue q in Just (v, (current, q1, actorSpace))
+
+
+  -- For tuple
+bind_vars :: [Identifier] -> [ExpVal] -> Env -> Store -> (Env, Store)
+bind_vars [] [] env store = (env, store)
+bind_vars (x:xs) (v:vs) env store = 
+  let (loc, store') = newref store v
+      env' = extend_env x loc env
+  in bind_vars xs vs env' store'

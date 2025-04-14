@@ -38,6 +38,9 @@ data Cont =
   | Actor1_Cont Exp Env Cont
   | Actor2_Cont ExpVal Cont
 
+  | Tuple_Cont [Exp] [ExpVal] Env Cont
+  | Let_Tuple_Cont [Identifier] Exp Env Cont
+
 apply_cont :: Cont -> ExpVal -> Store -> SchedState -> ActorState -> (FinalAnswer, Store)
 apply_cont cont val store sched actors =
   if time_expired sched
@@ -121,7 +124,6 @@ apply_cont cont val store sched actors =
                   (v:vs) -> let actorName = expval_actor v
                                 actors' = sendAllmsg actorName vs actors  -- It can also be implemented using Haskell's foldl
                             in apply_cont saved_cont (Num_Val 42) store sched actors'
-
  
     apply_cont' (Ready_Cont saved_cont) val store sched actors =
       case readymsg actors of 
@@ -158,6 +160,20 @@ apply_cont cont val store sched actors =
       in  if (id == id')
           then apply_cont cont (Bool_Val True) store sched actors
           else apply_cont cont (Bool_Val False) store sched actors
+
+
+    apply_cont' (Tuple_Cont explist vals env saved_cont) val store sched actors =
+      let vals' = vals ++ [val] in
+        case explist of
+          (exp:exps) -> value_of_k exp env (Tuple_Cont exps vals' env saved_cont) store sched actors
+          [] -> let tuple = List_Val vals' 
+                in apply_cont saved_cont tuple store sched actors
+
+    apply_cont' (Let_Tuple_Cont vars body env saved_cont) val store sched actors =
+      case val of
+        List_Val vals -> let (env', store') = bind_vars vars vals env store 
+                         in value_of_k body env' saved_cont store' sched actors
+        _ -> error ("LetTuple_Cont: expected a list, got " ++ show val)
 
 
 
@@ -259,7 +275,15 @@ value_of_k (New_Exp exp) env cont store sched actors =
   value_of_k exp env (New_Cont cont) store sched actors
 
 value_of_k (Eq_Actor_Exp exp1 exp2) env cont store sched actors =
-  value_of_k exp1 env (Actor1_Cont exp2 env cont) store sched actors 
+  value_of_k exp1 env (Actor1_Cont exp2 env cont) store sched actors
+
+-- For tuple
+value_of_k (Tuple_Exp (exp:exps)) env cont store sched actors =
+  value_of_k exp env (Tuple_Cont exps [] env cont) store sched actors
+
+value_of_k (LetTuple_Exp vars exp1 exp2) env cont store sched actors =
+  value_of_k exp1 env (Let_Tuple_Cont vars exp2 env cont) store sched actors
+  
 
 --
 value_of_program :: Exp -> Integer -> ExpVal
@@ -278,4 +302,4 @@ initEnv = empty_env
 apply_procedure_k :: Proc -> ExpVal -> Cont -> Store -> SchedState -> ActorState -> (FinalAnswer, Store)
 apply_procedure_k proc arg cont store sched actors =
   let (loc,store') = newref store arg in
-   value_of_k (body proc) (extend_env (var proc) loc (saved_env proc)) cont store' sched actors 
+   value_of_k (body proc) (extend_env (var proc) loc (saved_env proc)) cont store' sched actors
