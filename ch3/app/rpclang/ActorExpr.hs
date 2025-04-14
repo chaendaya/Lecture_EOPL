@@ -31,6 +31,8 @@ data Exp =
   | Ready_Exp Exp                         -- ready ( expression ) 
   | New_Exp   Exp                         -- new ( expression )
   | Eq_Actor_Exp Exp Exp                  -- actor? ( actor, actor )
+
+  | Closure_Exp Identifier Exp
   deriving Show
 
 data UnaryOp = IsZero | IsNull | Car | Cdr | Print deriving Show
