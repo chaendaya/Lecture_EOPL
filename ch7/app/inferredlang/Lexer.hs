@@ -25,6 +25,8 @@ lexerSpec = LexerSpec
         ("\\("     , mkFn OPEN_PAREN),
         ("\\)"     , mkFn CLOSE_PAREN),
         ("\\,"     , mkFn COMMA),
+
+        ("\\*"     , mkFn STAR),
         
         (":"       , mkFn COLON),
         
@@ -45,6 +47,9 @@ lexerSpec = LexerSpec
         
         ("proc"    , mkFn PROC),
 
+        ("newpair", mkFn NEWPAIR),
+        ("unpair", mkFn UNPAIR),
+        ("pairof", mkFn PAIROF),
         
         ("[a-zA-Z][a-zA-Z0-9]*"    , mkFn IDENTIFIER),
 

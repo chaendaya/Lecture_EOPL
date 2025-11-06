@@ -48,7 +48,13 @@ parserSpec = ParserSpec
 
       rule "Expression -> ( Expression Expression )"
         (\rhs -> return $ toASTExp $ Call_Exp (fromASTExp $ get rhs 2) (fromASTExp $ get rhs 3)),
+
+      rule "Expression -> newpair ( Expression , Expression )"
+        (\rhs -> return $ toASTExp $ Pair_Exp (fromASTExp $ get rhs 3) (fromASTExp $ get rhs 5) ),
         
+      rule "Expression -> unpair ( identifier , identifier ) = Expression in Expression"
+        (\rhs -> return $ toASTExp $ Unpair_Exp (getText rhs 3) (getText rhs 5) (fromASTExp $ get rhs 8) (fromASTExp $ get rhs 10)), 
+
       rule "Type -> int"
         (\rhs -> return $ toASTType $ TyInt),
       
@@ -57,6 +63,9 @@ parserSpec = ParserSpec
       
       rule "Type -> ( Type -> Type )"
         (\rhs -> return $ toASTType $ TyFun (fromASTType (get rhs 2)) (fromASTType (get rhs 4))),
+
+      rule "Type -> pairof Type * Type"
+        (\rhs -> return $ toASTType $ TyPair (fromASTType (get rhs 2)) (fromASTType (get rhs 4))),
 
       rule "OptionalType -> ?" (\rhs -> return $ toASTOptionalType $ NoType),
 
@@ -70,5 +79,3 @@ parserSpec = ParserSpec
     parserSpecFile = "mygrammar_inferredlang.grm",
     genparserexe   = "yapb-exe"
   }
-
-

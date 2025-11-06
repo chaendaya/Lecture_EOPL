@@ -15,6 +15,8 @@ data Exp =
   | Letrec_Exp OptionalType Identifier Identifier OptionalType Exp Exp -- letrec f(x) = ... recusive expr ...
   | Proc_Exp   Identifier OptionalType Exp           -- proc
   | Call_Exp   Exp Exp                       -- call
+  | Pair_Exp Exp Exp    -- newpair (Expression, Expression)
+  | Unpair_Exp  Identifier Identifier Exp Exp  -- unpair x y = exp in exp 
   deriving Show
 
 type Identifier = String
@@ -24,7 +26,8 @@ type TypeVariable = Integer
 data Type =
     TyInt
   | TyBool
-  | TyFun Type Type
+  | TyFun Type Type   -- (Type -> Type) 
+  | TyPair Type Type  -- pairof Type * Type
   | TyVar Integer
   deriving (Show, Eq)
 
@@ -33,6 +36,15 @@ isTyVar _ = False
 
 isTyFun (TyFun _ _) = True
 isTyFun _ = False 
+
+isTyPair (TyPair _ _) = True
+isTyPair _ = False
+
+fstType (TyPair ty1 _) = ty1
+fstType _             = error "fstType: not a pair"
+
+sndType (TyPair _ ty2) = ty2
+sndType _             = error "sndType: not a pair"
 
 typeVariable (TyVar tvar) = tvar
 typeVariable ty = error $ "typeVariable : not TyVar: " ++ show ty
@@ -60,6 +72,3 @@ toASTExp exp = ASTExp exp
 toASTType ty = ASTType ty
 
 toASTOptionalType optty = ASTOptionalType optty
-
-
-

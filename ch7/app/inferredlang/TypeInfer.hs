@@ -76,6 +76,19 @@ type_of (Letrec_Exp retOptTy f x argOptTy fbody exp1) tyenv subst =
      subst2 <- unifier ty1 retTy subst1 fbody 
      type_of exp1 tyenvletrec subst2
 
+type_of (Pair_Exp exp1 exp2) tyenv subst = 
+  do (ty1, subst1) <- type_of exp1 tyenv subst
+     (ty2, subst2) <- type_of exp2 tyenv subst1
+     _Right (TyPair ty1 ty2, subst2)
+
+type_of exp@(Unpair_Exp x y exp1 exp2) tyenv subst = 
+  do (pairty, subst1) <- type_of exp1 tyenv subst  
+     tv1 <- fresh_tyvar
+     tv2 <- fresh_tyvar
+     subst2 <- unifier pairty (TyPair tv1 tv2) subst1 exp 
+     let tyenv' = extend_tyenv y tv2 (extend_tyenv x tv1 tyenv)
+     type_of exp2 tyenv' subst2
+
 -- 7.4.2 The Unifier
 
 unifier :: Type -> Type -> Subst -> Exp -> Either_ String Subst 
@@ -101,6 +114,10 @@ unifier ty1' ty2' subst expr =
         do subst1 <- unifier (argType ty1) (argType ty2) subst expr 
            subst2 <- unifier (resType ty1) (resType ty2) subst1 expr 
            _Right subst2
+  else if isTyPair ty1 && isTyPair ty2 then   -- unifying two pair types !! 
+       do subst1 <- unifier (fstType ty1) (fstType ty2) subst expr
+          subst2 <- unifier (sndType ty1) (sndType ty2) subst1 expr
+          _Right subst2 
   else _Left ("Unification failure: " ++ show ty1 ++ ", " ++ show ty2 ++
               "\n  in " ++ show expr)
 
@@ -110,3 +127,5 @@ no_occurrence tyvar TyBool = True
 no_occurrence tyvar (TyFun argTy resTy) = 
   no_occurrence tyvar argTy && no_occurrence tyvar resTy 
 no_occurrence tyvar (TyVar tyvar0) = tyvar /= tyvar0 
+no_occurrence tyvar (TyPair ty1 ty2) = 
+  no_occurrence tyvar ty1 && no_occurrence tyvar ty2 -- Todo !!! 

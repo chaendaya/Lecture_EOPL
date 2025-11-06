@@ -22,6 +22,8 @@ apply_subst tvar (Extend_Subst subst tvar0 ty)
 empty_subst :: Subst
 empty_subst = Empty_Subst  
 
+-- [1=int, 2=bool]
+-- ( Extend_Subst ( Extend_Subst Empty_Subst 2 TyBool ) 1 TyInt )
 extend_subst :: Subst -> TypeVariable -> Type -> Subst 
 extend_subst subst tvar ty =
   Extend_Subst (extend_the_rest subst tvar ty) tvar ty 
@@ -34,12 +36,16 @@ extend_the_rest (Extend_Subst subst tvar0 ty0) tvar ty =
   
 --
 -- apply_one_subst t0 tv t1 = t0 [tv = t1]
+-- 타입식 t0에 나타난 타입 변수 tv를 타입식 t1으로 치환한 결과를 반환
 apply_one_subst :: Type -> TypeVariable -> Type -> Type 
 apply_one_subst TyInt tvar ty1 = TyInt 
 apply_one_subst TyBool tyvar ty1 = TyBool
 apply_one_subst (TyFun argTy retTy) tyvar ty1 = 
   TyFun (apply_one_subst argTy tyvar ty1)
         (apply_one_subst retTy tyvar ty1)
+apply_one_subst (TyPair fstTy sndTy) tyvar ty1 =
+  TyPair (apply_one_subst fstTy tyvar ty1)
+         (apply_one_subst sndTy tyvar ty1)
 apply_one_subst (TyVar tvar0) tvar ty1 =
   if tvar0 == tvar then ty1 else TyVar tvar0
 
@@ -50,6 +56,9 @@ apply_subst_to_type TyBool subst = TyBool
 apply_subst_to_type (TyFun argTy retTy) subst =
   TyFun (apply_subst_to_type argTy subst)
         (apply_subst_to_type retTy subst)
+apply_subst_to_type (TyPair fstTy sndTy) subst =
+  TyPair (apply_subst_to_type fstTy subst)
+         (apply_subst_to_type sndTy subst)
 apply_subst_to_type (TyVar tvar0) subst =
   case apply_subst tvar0 subst of
     Nothing -> TyVar tvar0

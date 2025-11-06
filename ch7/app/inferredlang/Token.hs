@@ -38,6 +38,15 @@ data Token =
   | TYBOOL                      -- bool
   
   | ARROW                       -- ->
+
+  | NEWPAIR                     -- newpair 
+
+  | UNPAIR                      -- unpair 
+
+  | PAIROF                      -- pairof
+
+  | STAR                        -- *
+
   deriving (Eq, Show)
 
 tokenStrList :: [(Token,String)]
@@ -75,7 +84,15 @@ tokenStrList =
     
     (TYBOOL, "bool"),
     
-    (ARROW, "->")
+    (ARROW, "->"),
+
+    (NEWPAIR, "newpair"),
+
+    (UNPAIR, "unpair"),
+
+    (PAIROF, "pairof"),
+
+    (STAR, "*")
   ]
 
 findTok tok [] = Nothing
