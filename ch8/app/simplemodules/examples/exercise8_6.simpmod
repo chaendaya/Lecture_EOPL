@@ -1,0 +1,14 @@
+module m1
+    interface
+        [ m2 : [v : int]
+          u : int
+          v : int ]
+    body
+        module m2
+            interface [v : int]
+            body [v = 33]
+        [u = 44
+         v = - (from m2 take v, 1) ]
+
+from m1 take from m2 take v
+

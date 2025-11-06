@@ -14,9 +14,9 @@ typeCheck program = return (type_of_program program )
 add_module_defns_to_tyenv :: [ ModuleDef ] -> TyEnv -> Either String TyEnv
 add_module_defns_to_tyenv [] tyenv = Right tyenv
 add_module_defns_to_tyenv (ModuleDef m iface mbody : moddefs) tyenv = 
-  do actual_iface <- interface_of mbody tyenv
-     if sub_iface actual_iface iface tyenv 
-     then let newtyenv = extend_tyenv_with_module m iface tyenv in 
+  do actual_iface <- interface_of mbody tyenv   -- 각 ModuleDef에 대해 실제 인터페이스 계산
+     if sub_iface actual_iface iface tyenv      -- 주어진 인터페이스가 서브타입인지 검사
+     then let newtyenv = extend_tyenv_with_module m iface tyenv in    -- 모듈이름 - 인터페이스 바인딩 추가
               add_module_defns_to_tyenv moddefs newtyenv 
      else Left $ "In the module " ++ m
                    ++ "\n  expected interface: " ++ show iface
@@ -26,6 +26,22 @@ interface_of :: ModuleBody -> TyEnv -> Either String Interface
 interface_of (DefnsModuleBody defs) tyenv = 
   do decls <- defns_to_decls defs tyenv
      Right (SimpleIface decls)
+interface_of (SubModuleBody (ModuleDef m iface subBody) restBody) tyenv =
+  do actual_iface <- interface_of subBody tyenv -- 서브 모듈을 먼저 타입 체크
+     if sub_iface actual_iface iface tyenv  -- 서브 모듈의 인터페이스 검사
+      then do
+        -- 서브 모듈이 추가된 타입 환경에서 기존 나머지 모듈 바디 계산
+        let newtyenv = extend_tyenv_with_module m iface tyenv
+        (SimpleIface rest_decls) <- interface_of restBody newtyenv
+        -- 서브 모듈의 이름 : 인터페이스를 decls에 추가 
+        let (SimpleIface sub_decls) = iface
+            sub_iface_decls = SubIface m sub_decls
+        Right (SimpleIface (sub_iface_decls : rest_decls))
+        
+      else -- 에러 처리
+        Left $ "In the sub-module " ++ m
+                   ++ "\n  expected interface: " ++ show iface
+                   ++ "\n  actual interface: " ++ show actual_iface
 
 defns_to_decls :: [ Definition ] -> TyEnv -> Either String [ Declaration ]
 defns_to_decls [] tyenv = Right []
@@ -40,15 +56,29 @@ sub_iface :: Interface -> Interface -> TyEnv -> Bool
 sub_iface (SimpleIface decls1) (SimpleIface decls2) tyenv =
   sub_decls decls1 decls2 tyenv 
 
+-- sub_decls :: [Declaration] -> [Declaration] -> TyEnv -> Bool
+-- sub_decls decls1 [] tyenv = True 
+-- sub_decls [] decls2 tyenv = False
+-- sub_decls (ValDecl x ty1:decls1) (ValDecl y ty2:decls2) tyenv =
+--   if x == y 
+--   then if equalType ty1 ty2 
+--         then sub_decls decls1 decls2 tyenv 
+--         else False
+--   else sub_decls decls1 (ValDecl y ty2:decls2) tyenv
+
 sub_decls :: [Declaration] -> [Declaration] -> TyEnv -> Bool
 sub_decls decls1 [] tyenv = True 
 sub_decls [] decls2 tyenv = False
-sub_decls (ValDecl x ty1:decls1) (ValDecl y ty2:decls2) tyenv =
-  if x == y 
-  then if equalType ty1 ty2 
-        then sub_decls decls1 decls2 tyenv 
-        else False
-  else sub_decls decls1 (ValDecl y ty2:decls2) tyenv
+sub_decls (aDecl:as) (rDecl:rs) tyenv
+ | is_match tyenv aDecl rDecl = sub_decls as rs tyenv
+ | otherwise                  = sub_decls as (rDecl:rs) tyenv
+
+is_match :: TyEnv -> Declaration -> Declaration -> Bool
+is_match tyenv (ValDecl x ty1) (ValDecl y ty2) = 
+  x == y && equalType ty1 ty2
+is_match tyenv (SubIface x decls1) (SubIface y decls2) =
+  x == y && sub_decls decls1 decls2 tyenv
+is_match _ _ _ = False
 
 --
 type_of_program :: Program -> Either String Type
@@ -66,7 +96,9 @@ type_of (Const_Exp n) tyenv = Right TyInt
 
 type_of (Var_Exp var) tyenv = apply_tyenv tyenv var
 
-type_of (QualifiedVar_Exp m v) tyenv = lookup_qualified_var_in_tyenv m v tyenv
+type_of (QualifiedVar_Exp m v) tyenv =
+  do (SimpleIface final_decls) <- lookup_nested_interface m tyenv
+     lookup_var_in_decls v final_decls
 
 type_of (Diff_Exp exp1 exp2) tyenv =
   do ty1 <- type_of exp1 tyenv 

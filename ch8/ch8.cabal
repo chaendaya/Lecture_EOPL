@@ -1,6 +1,6 @@
 cabal-version: 1.12
 
--- This file has been generated from package.yaml by hpack version 0.38.0.
+-- This file has been generated from package.yaml by hpack version 0.37.0.
 --
 -- see: https://github.com/sol/hpack
 
@@ -108,7 +108,7 @@ executable simplemodules-exe
       Paths_ch8
   hs-source-dirs:
       app/simplemodules
-  ghc-options: -rtsopts -with-rtsopts=-N
+  ghc-options: -threaded -rtsopts
   build-depends:
       base >=4.7 && <5
     , ch8

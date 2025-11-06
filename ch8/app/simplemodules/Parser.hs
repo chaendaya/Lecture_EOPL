@@ -49,6 +49,16 @@ parserSpec = ParserSpec
       rule "Declaration -> identifier : Type" (\rhs ->
         return $ toASTDeclaration (ValDecl (getText rhs 1) (fromASTType (get rhs 3)))),
 
+      rule "Declaration -> identifier : Interface" (\rhs ->
+        let id = getText rhs 1
+            (SimpleIface decls) = fromASTInterface (get rhs 3)
+        in return $ toASTDeclaration (SubIface id decls)),
+
+      rule "ModuleBody -> ModuleDefinition ModuleBody" (\rhs ->
+        return $ toASTModuleBody $
+          SubModuleBody (fromASTModuleDef (get rhs 1))
+                        (fromASTModuleBody (get rhs 2))),
+
       rule "ModuleBody -> [ ZeroOrMoreDefinition ]" (\rhs -> 
         return $ toASTModuleBody $ DefnsModuleBody (fromASTDefinitionList (get rhs 2))),
 
@@ -61,8 +71,22 @@ parserSpec = ParserSpec
       rule "Definition -> identifier = Expression" (\rhs -> 
         return $ toASTDefinition $ ValDefn (getText rhs 1) (fromASTExp (get rhs 3))),
 
-      rule "Expression -> from identifier take identifier" (\rhs -> 
-        return $ toASTExp $ QualifiedVar_Exp (getText rhs 2) (getText rhs 4)),
+      -- 다단계 QualifiedVar
+      rule "Expression -> QualifiedVar" (\rhs ->
+        return $ toASTExp $ fromASTExp (get rhs 1)),
+
+      rule "QualifiedVar -> from identifier take QualifiedVar" (\rhs ->
+        let m = getText rhs 2
+            QualifiedVar_Exp mods x = fromASTExp (get rhs 4)
+        in return $ toASTExp $ QualifiedVar_Exp (m:mods) x),
+
+      rule "QualifiedVar -> from identifier take identifier" (\rhs ->
+        let m = getText rhs 2
+            x = getText rhs 4
+        in return $ toASTExp $ QualifiedVar_Exp [m] x),
+
+      -- rule "Expression -> from identifier take identifier" (\rhs -> 
+      --   return $ toASTExp $ QualifiedVar_Exp (getText rhs 2) (getText rhs 4)),
 
       rule "Expression -> integer_number"
         (\rhs -> return $ toASTExp $ Const_Exp (read (getText rhs 1) :: Int)),

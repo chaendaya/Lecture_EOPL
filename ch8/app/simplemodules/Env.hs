@@ -39,11 +39,12 @@ extend_env_rec f x exp env = Extend_env_rec f x exp env
 extend_env_with_module :: Identifier -> TypedModule -> Env -> Env
 extend_env_with_module x mod env = Extend_env_with_module x mod env
 
-lookup_qualified_var_in_env :: Identifier -> Identifier -> Env -> ExpVal
-lookup_qualified_var_in_env mod_name var_name env = 
-  let mod = lookup_module_name_in_env mod_name env in 
-    case mod of
-      SimpleModule mod_env -> apply_env mod_env var_name
+lookup_qualified_var_in_env :: [Identifier] -> Identifier -> Env -> ExpVal
+lookup_qualified_var_in_env mods var env =
+  apply_env finalEnv var
+  where finalEnv = foldl 
+                      (\e m -> case lookup_module_name_in_env m e of
+                                  SimpleModule e' -> e') env mods
 
 lookup_module_name_in_env :: Identifier -> Env -> TypedModule
 lookup_module_name_in_env mod_name Empty_env = error (mod_name ++ " is not found.")

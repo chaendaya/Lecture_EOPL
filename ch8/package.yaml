@@ -46,8 +46,9 @@ executables:
     source-dirs:         
     - app/simplemodules
     ghc-options:
+    - -threaded
     - -rtsopts
-    - -with-rtsopts=-N
+    #- -with-rtsopts=-N
     dependencies:
     - ch8
   opaquetypes-exe:

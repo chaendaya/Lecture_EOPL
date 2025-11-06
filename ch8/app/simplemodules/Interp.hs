@@ -58,9 +58,14 @@ add_module_defns_to_env (ModuleDef mod_name _ mod_body : mod_defns) env =
 value_of_module_body :: ModuleBody -> Env -> TypedModule
 value_of_module_body (DefnsModuleBody defs) env = 
   SimpleModule (defns_to_env defs env)
+value_of_module_body (SubModuleBody submod mod_body) env =
+  let ModuleDef sub_name _ sub_body = submod
+      sub_typed_mod = value_of_module_body sub_body env
+      new_env = extend_env_with_module sub_name sub_typed_mod env
+  in value_of_module_body mod_body new_env
 
 defns_to_env :: [Definition] -> Env -> Env
-defns_to_env [] env = empty_env
+defns_to_env [] env = env   -- not empty_env
 defns_to_env (ValDefn var exp : defns) env =
   let val = value_of exp env
       newenv = extend_env var val env 

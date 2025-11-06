@@ -9,18 +9,21 @@ data Program = Program [ ModuleDef ] Exp
 data ModuleDef = ModuleDef Identifier Interface ModuleBody
   deriving Show
 
-data ModuleBody = DefnsModuleBody [ Definition ] 
+data ModuleBody =
+    SubModuleBody ModuleDef ModuleBody
+  | DefnsModuleBody [Definition]
   deriving Show
 
-data Interface = SimpleIface [ Declaration ]
+data Interface = SimpleIface [Declaration]
   deriving Show
 
 data Declaration = ValDecl Identifier Type 
+                | SubIface Identifier [Declaration]
   deriving Show
 
 data Definition = ValDefn Identifier Exp 
   deriving Show
-  
+
 data Exp =
     Const_Exp  Int
   | Diff_Exp   Exp Exp
@@ -31,7 +34,7 @@ data Exp =
   | Letrec_Exp Type Identifier Identifier Type Exp Exp -- letrec f(x) = ... recusive expr ...
   | Proc_Exp   Identifier Type Exp           -- proc
   | Call_Exp   Exp Exp                       -- call
-  | QualifiedVar_Exp Identifier Identifier
+  | QualifiedVar_Exp [Identifier] Identifier
   deriving Show
 
 type Identifier = String
