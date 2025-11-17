@@ -9,9 +9,15 @@ data Program = Program [ ModuleDef ] Exp
 data ModuleDef = ModuleDef Identifier Interface ModuleBody
   deriving Show
 
-data ModuleBody =
-    SubModuleBody ModuleDef ModuleBody
-  | DefnsModuleBody [Definition]
+-- data ModuleBody =
+--     SubModuleBody ModuleDef ModuleBody
+--   | DefnsModuleBody [Definition]
+--   deriving Show
+data ModuleBody = ModuleBody [Definition]
+  deriving Show
+
+data Definition = ValDefn Identifier Exp
+              | SubMod ModuleDef
   deriving Show
 
 data Interface = SimpleIface [Declaration]
@@ -21,8 +27,8 @@ data Declaration = ValDecl Identifier Type
                 | SubIface Identifier [Declaration]
   deriving Show
 
-data Definition = ValDefn Identifier Exp 
-  deriving Show
+-- data Definition = ValDefn Identifier Exp 
+--   deriving Show
 
 data Exp =
     Const_Exp  Int

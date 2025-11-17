@@ -1,21 +1,20 @@
 module m1
     interface
-        [ m2 : [m3 : [v : int]
-                v : int ]
+        [
           u : int
           v : int ]
     body
-        module m2
+        [ module m2
             interface 
                 [ m3 : [v : int]
                   v : int ]
             body 
-                 module m3
+                [ module m3
                     interface [v : int]
                     body [v = 33]
-                 [v = 22]
-        [u = - (from m2 take from m3 take v, 1)
+                  v = 22]
+         u = - (from m2 take from m3 take v, 1)
          v = 11 ]
 
-from m1 take from m2 take from m3 take v
+from m1 take u
 

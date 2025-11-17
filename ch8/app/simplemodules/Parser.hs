@@ -54,13 +54,16 @@ parserSpec = ParserSpec
             (SimpleIface decls) = fromASTInterface (get rhs 3)
         in return $ toASTDeclaration (SubIface id decls)),
 
-      rule "ModuleBody -> ModuleDefinition ModuleBody" (\rhs ->
-        return $ toASTModuleBody $
-          SubModuleBody (fromASTModuleDef (get rhs 1))
-                        (fromASTModuleBody (get rhs 2))),
+      -- rule "ModuleBody -> ModuleDefinition ModuleBody" (\rhs ->
+      --   return $ toASTModuleBody $
+      --     SubModuleBody (fromASTModuleDef (get rhs 1))
+      --                   (fromASTModuleBody (get rhs 2))),
 
-      rule "ModuleBody -> [ ZeroOrMoreDefinition ]" (\rhs -> 
-        return $ toASTModuleBody $ DefnsModuleBody (fromASTDefinitionList (get rhs 2))),
+      -- rule "ModuleBody -> [ ZeroOrMoreDefinition ]" (\rhs -> 
+      --   return $ toASTModuleBody $ DefnsModuleBody (fromASTDefinitionList (get rhs 2))),
+      
+      rule "ModuleBody -> [ ZeroOrMoreDefinition ]" (\rhs ->
+        return $ toASTModuleBody $ ModuleBody (fromASTDefinitionList (get rhs 2))),
 
       rule "ZeroOrMoreDefinition -> " (\rhs -> return $ toASTDefinitionList []),
 
@@ -70,6 +73,9 @@ parserSpec = ParserSpec
 
       rule "Definition -> identifier = Expression" (\rhs -> 
         return $ toASTDefinition $ ValDefn (getText rhs 1) (fromASTExp (get rhs 3))),
+
+      rule "Definition -> ModuleDefinition" (\rhs ->
+        return $ toASTDefinition $ SubMod (fromASTModuleDef (get rhs 1)) ),
 
       -- 다단계 QualifiedVar
       rule "Expression -> QualifiedVar" (\rhs ->

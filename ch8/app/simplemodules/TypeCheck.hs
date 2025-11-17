@@ -11,6 +11,7 @@ typeCheck :: Program -> IO (Either String Type)
 typeCheck program = return (type_of_program program )
 
 --
+-- 1. 모듈 정의 리스트를 처리해 타입 환경을 구함
 add_module_defns_to_tyenv :: [ ModuleDef ] -> TyEnv -> Either String TyEnv
 add_module_defns_to_tyenv [] tyenv = Right tyenv
 add_module_defns_to_tyenv (ModuleDef m iface mbody : moddefs) tyenv = 
@@ -23,25 +24,29 @@ add_module_defns_to_tyenv (ModuleDef m iface mbody : moddefs) tyenv =
                    ++ "\n  actual interface: " ++ show actual_iface
 
 interface_of :: ModuleBody -> TyEnv -> Either String Interface 
-interface_of (DefnsModuleBody defs) tyenv = 
-  do decls <- defns_to_decls defs tyenv
-     Right (SimpleIface decls)
-interface_of (SubModuleBody (ModuleDef m iface subBody) restBody) tyenv =
-  do actual_iface <- interface_of subBody tyenv -- 서브 모듈을 먼저 타입 체크
-     if sub_iface actual_iface iface tyenv  -- 서브 모듈의 인터페이스 검사
-      then do
-        -- 서브 모듈이 추가된 타입 환경에서 기존 나머지 모듈 바디 계산
-        let newtyenv = extend_tyenv_with_module m iface tyenv
-        (SimpleIface rest_decls) <- interface_of restBody newtyenv
-        -- 서브 모듈의 이름 : 인터페이스를 decls에 추가 
-        let (SimpleIface sub_decls) = iface
-            sub_iface_decls = SubIface m sub_decls
-        Right (SimpleIface (sub_iface_decls : rest_decls))
+interface_of (ModuleBody defs) tyenv = do 
+  decls <- defns_to_decls defs tyenv
+  Right (SimpleIface decls)
+
+-- interface_of (DefnsModuleBody defs) tyenv = 
+--   do decls <- defns_to_decls defs tyenv
+--      Right (SimpleIface decls)
+-- interface_of (SubModuleBody (ModuleDef m iface subBody) restBody) tyenv =
+--   do actual_iface <- interface_of subBody tyenv -- 서브 모듈을 먼저 타입 체크
+--      if sub_iface actual_iface iface tyenv  -- 서브 모듈의 인터페이스 검사
+--       then do
+--         -- 서브 모듈이 추가된 타입 환경에서 기존 나머지 모듈 바디 계산
+--         let newtyenv = extend_tyenv_with_module m iface tyenv
+--         (SimpleIface rest_decls) <- interface_of restBody newtyenv
+--         -- 서브 모듈의 이름 : 인터페이스를 decls에 추가 
+--         let (SimpleIface sub_decls) = iface
+--             sub_iface_decls = SubIface m sub_decls
+--         Right (SimpleIface (sub_iface_decls : rest_decls))
         
-      else -- 에러 처리
-        Left $ "In the sub-module " ++ m
-                   ++ "\n  expected interface: " ++ show iface
-                   ++ "\n  actual interface: " ++ show actual_iface
+--       else -- 에러 처리
+--         Left $ "In the sub-module " ++ m
+--                    ++ "\n  expected interface: " ++ show iface
+--                    ++ "\n  actual interface: " ++ show actual_iface
 
 defns_to_decls :: [ Definition ] -> TyEnv -> Either String [ Declaration ]
 defns_to_decls [] tyenv = Right []
@@ -51,6 +56,22 @@ defns_to_decls (ValDefn var exp : defs) tyenv =
     Right ty -> 
       do decls <- defns_to_decls defs (extend_tyenv var ty tyenv)
          Right (ValDecl var ty : decls)
+defns_to_decls (SubMod (ModuleDef m iface subBody) : defs) tyenv =
+  do actual_iface <- interface_of subBody tyenv -- 서브 모듈을 먼저 타입 체크
+     if sub_iface actual_iface iface tyenv  -- 서브 모듈의 인터페이스 검사
+      then do
+        -- 서브 모듈이 추가된 타입 환경에서 기존 나머지 모듈 바디 계산
+        let newtyenv = extend_tyenv_with_module m iface tyenv
+        decls <- defns_to_decls defs newtyenv
+        -- 서브 모듈의 이름 : 인터페이스를 decls에 추가
+        let (SimpleIface sub_decls) = iface
+            sub_iface_decls = SubIface m sub_decls
+        Right (sub_iface_decls : decls)
+        
+      else -- 에러 처리
+        Left $ "In the sub-module " ++ m
+                   ++ "\n  expected interface: " ++ show iface
+                   ++ "\n  actual interface: " ++ show actual_iface
 
 sub_iface :: Interface -> Interface -> TyEnv -> Bool
 sub_iface (SimpleIface decls1) (SimpleIface decls2) tyenv =
@@ -90,6 +111,7 @@ type_of_program program =
         Right tyenv -> type_of modbody tyenv
     
 --
+-- 2. 구해진 타입 환경으로 본문 식 타입 계산
 type_of :: Exp -> TyEnv -> Either String Type
 
 type_of (Const_Exp n) tyenv = Right TyInt

@@ -29,6 +29,8 @@ apply_env (Extend_env saved_var saved_val saved_env) search_var
 apply_env (Extend_env_rec p_name b_var p_body saved_env) search_var
   | p_name==search_var = Proc_Val (procedure b_var p_body (Extend_env_rec p_name b_var p_body saved_env))
   | otherwise          = apply_env saved_env search_var
+apply_env (Extend_env_with_module _ _ saved_env) search_var =
+  apply_env saved_env search_var
 
 extend_env :: Identifier -> ExpVal -> Env -> Env
 extend_env x v env = Extend_env x v env
