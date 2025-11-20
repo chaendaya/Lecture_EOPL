@@ -49,9 +49,9 @@ parserSpec = ParserSpec
       rule "Declaration -> identifier : Type" (\rhs ->
         return $ toASTDeclaration (ValDecl (getText rhs 1) (fromASTType (get rhs 3)))),
 
-      rule "Declaration -> identifier : Interface" (\rhs ->
+      rule "Declaration -> identifier : interface Interface" (\rhs ->
         let id = getText rhs 1
-            (SimpleIface decls) = fromASTInterface (get rhs 3)
+            (SimpleIface decls) = fromASTInterface (get rhs 4)
         in return $ toASTDeclaration (SubIface id decls)),
 
       -- rule "ModuleBody -> ModuleDefinition ModuleBody" (\rhs ->

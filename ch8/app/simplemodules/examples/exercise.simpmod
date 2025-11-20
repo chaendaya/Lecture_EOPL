@@ -6,7 +6,7 @@ module m1
     body
         [ module m2
             interface 
-                [ m3 : [v : int]
+                [ m3 : interface [v : int]
                   v : int ]
             body 
                 [ module m3

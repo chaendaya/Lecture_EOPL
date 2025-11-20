@@ -1,6 +1,6 @@
 module m1
     interface
-        [ m2 : [v : int]
+        [ m2 : interface [v : int]
           u : int
           v : int ]
     body
