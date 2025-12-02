@@ -15,7 +15,8 @@ data ModuleBody =
     DefnsModuleBody [ Definition ] 
   | ProcModuleBody Identifier Interface ModuleBody 
   | VarModuleBody Identifier
-  | AppModuleBody Identifier Identifier
+  | AppModuleBody ModuleBody ModuleBody
+  -- | AppModuleBody Identifier Identifier
   deriving Show
 
 data Interface = 

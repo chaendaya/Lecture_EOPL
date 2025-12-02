@@ -33,19 +33,38 @@ interface_of (DefnsModuleBody defs) tyenv =
      _Right $ SimpleIface decls
 interface_of (VarModuleBody mname) tyenv =
   lookup_module_name_in_tyenv tyenv mname
-interface_of (AppModuleBody mfname margname) tyenv =
-  do fniface <- lookup_module_name_in_tyenv tyenv mfname 
-     argiface <- lookup_module_name_in_tyenv tyenv margname
+interface_of (AppModuleBody rator rand) tyenv =
+  do fniface <- interface_of rator tyenv
+     argiface <- interface_of rand tyenv
      case fniface of
-       SimpleIface decls -> 
-         _Left $ "attempt to apply non-parameterized module: " ++ show mfname
-       ProcIface mname iface1 iface2 ->
-         do b <- sub_iface argiface iface1 tyenv 
-            if b
-            then _Right $ rename_in_iface iface2 mname margname
-            else _Left $ "bad module application : " ++ mfname ++ " " ++ margname ++ "\n"
-                          ++ "actual interface: " ++ show argiface ++ "\n"
-                          ++ "expected interface: " ++ show iface1
+        SimpleIface _ -> 
+          _Left $ "attempt to apply non-parameterized module"
+        ProcIface mname iface1 iface2 -> do
+          b <- sub_iface argiface iface1 tyenv
+          if b
+          then 
+            case actualModuleNameOf rand of
+              Just actualName ->
+                _Right (rename_in_iface iface2 mname actualName)
+              Nothing -> do
+                n <- _fresh
+                let anonName = "$anon_mod_" ++ show n
+                    iface2' = rename_in_iface iface2 mname anonName
+                _Right iface2'
+          else _Left $ "bad module application"
+-- interface_of (AppModuleBody mfname margname) tyenv =
+--   do fniface <- lookup_module_name_in_tyenv tyenv mfname 
+--      argiface <- lookup_module_name_in_tyenv tyenv margname
+--      case fniface of
+--        SimpleIface decls -> 
+--          _Left $ "attempt to apply non-parameterized module: " ++ show mfname
+--        ProcIface mname iface1 iface2 ->
+--          do b <- sub_iface argiface iface1 tyenv 
+--             if b
+--             then _Right $ rename_in_iface iface2 mname margname
+--             else _Left $ "bad module application : " ++ mfname ++ " " ++ margname ++ "\n"
+--                           ++ "actual interface: " ++ show argiface ++ "\n"
+--                           ++ "expected interface: " ++ show iface1
 interface_of (ProcModuleBody mname iface mbody) tyenv =
   do  expandediface <- expand_iface mname iface tyenv
       bodyiface <- interface_of mbody
@@ -268,4 +287,10 @@ equalType (TyQualified m1 t1) (TyQualified m2 t2) =
 equalType (TyName tname1) (TyName tname2) = 
   tname1 == tname2  
 equalType _ _ = False
+
+
+-- for rename
+actualModuleNameOf :: ModuleBody -> Maybe Identifier
+actualModuleNameOf (VarModuleBody x) = Just x
+actualModuleNameOf _                 = Nothing
 

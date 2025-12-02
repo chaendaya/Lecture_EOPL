@@ -75,8 +75,13 @@ parserSpec = ParserSpec
       rule "ModuleBody -> identifier" (\rhs -> 
         return $ toASTModuleBody $ VarModuleBody (getText rhs 1)),
 
-      rule "ModuleBody -> ( identifier identifier )" (\rhs -> 
-        return $ toASTModuleBody $ AppModuleBody (getText rhs 2) (getText rhs 3)),
+      rule "ModuleBody -> ( ModuleBody ModuleBody )" (\rhs -> do
+        let rator = fromASTModuleBody (get rhs 2)
+            rand = fromASTModuleBody (get rhs 3) 
+        return $ toASTModuleBody $ AppModuleBody rator rand),
+
+      -- rule "ModuleBody -> ( identifier identifier )" (\rhs -> 
+      --   return $ toASTModuleBody $ AppModuleBody (getText rhs 2) (getText rhs 3)),
 
       rule "ZeroOrMoreDefinition -> " (\rhs -> return $ toASTDefinitionList []),
 

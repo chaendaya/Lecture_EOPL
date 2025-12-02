@@ -82,7 +82,7 @@ executable procmodules-exe
       Paths_ch8
   hs-source-dirs:
       app/procmodules
-  ghc-options: -rtsopts -with-rtsopts=-N
+  ghc-options: -threaded -rtsopts -with-rtsopts=-N
   build-depends:
       base >=4.7 && <5
     , ch8

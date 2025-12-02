@@ -64,13 +64,21 @@ value_of_module_body (VarModuleBody mname) env =
   lookup_module_name_in_env mname env  
 value_of_module_body (ProcModuleBody marg iface mbody) env =
   ProcModule marg mbody env
-value_of_module_body (AppModuleBody mFunName mArgName) env =
-  let mFunVal = lookup_module_name_in_env mFunName env 
-      mArgVal = lookup_module_name_in_env mArgName env
-  in case mFunVal of 
-       ProcModule mname mbody env1 -> 
-         value_of_module_body mbody (extend_env_with_module mname mArgVal env) 
-       SimpleModule env1 -> error $ "Can't apply non-proc-module-value: " ++ mFunName
+value_of_module_body (AppModuleBody rator rand) env =
+  let funVal = value_of_module_body rator env
+      argVal = value_of_module_body rand env
+  in case funVal of
+        ProcModule mname mbody closureEnv ->
+          value_of_module_body mbody (extend_env_with_module mname argVal closureEnv)
+        SimpleModule _ ->
+          error "Can't apply non-proc-module-value"
+-- value_of_module_body (AppModuleBody mFunName mArgName) env =
+--   let mFunVal = lookup_module_name_in_env mFunName env 
+--       mArgVal = lookup_module_name_in_env mArgName env
+--   in case mFunVal of 
+--        ProcModule mname mbody env1 -> 
+--          value_of_module_body mbody (extend_env_with_module mname mArgVal env) 
+--        SimpleModule env1 -> error $ "Can't apply non-proc-module-value: " ++ mFunName
 
 defns_to_env :: [Definition] -> Env -> Env
 defns_to_env [] env = empty_env
