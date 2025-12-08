@@ -62,7 +62,11 @@ parserSpec = ParserSpec
 
       rule "MethodDecl -> method Type identifier ( ZeroMoreTypedIdentifier ) Expression"
         (\rhs -> return $ fromMethodDecl $ 
-                  Method_Decl (typeFrom (get rhs 2)) (getText rhs 3) (typeIdListFrom (get rhs 5)) (expFrom (get rhs 7))),
+                  Method_Decl False (typeFrom (get rhs 2)) (getText rhs 3) (typeIdListFrom (get rhs 5)) (expFrom (get rhs 7))),
+
+      rule "MethodDecl -> staticmethod Type identifier ( ZeroMoreTypedIdentifier ) Expression"
+        (\rhs -> return $ fromMethodDecl $ 
+                  Method_Decl True (typeFrom (get rhs 2)) (getText rhs 3) (typeIdListFrom (get rhs 5)) (expFrom (get rhs 7))),
 
       rule "ZeroMoreAbstractMethodDecl -> AbstractMethodDecl ZeroMoreAbstractMethodDecl"
         (\rhs -> return $ fromMethodDeclList $

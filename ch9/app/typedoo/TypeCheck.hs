@@ -266,7 +266,7 @@ classDeclToStaticClass clzEnv (Interface_Decl ifaceName methodDecls) =
       methodTyEnv = map methodDeclToTyEnv methodDecls
 
 methodDeclToTyEnv :: MethodDecl -> (Identifier, Type)
-methodDeclToTyEnv (Method_Decl ty name tyArgs _) = (name, TyFun (map fst tyArgs) ty)
+methodDeclToTyEnv (Method_Decl _ ty name tyArgs _) = (name, TyFun (map fst tyArgs) ty)
 methodDeclToTyEnv (AbstractMethod_Decl ty name tyArgs) = (name, TyFun (map fst tyArgs) ty)
 
 -- 
@@ -300,7 +300,7 @@ check_method_decls clzEnv cname superName fieldNames fieldTypes (methodDecl:meth
      check_method_decls clzEnv cname superName fieldNames fieldTypes methodDecls
 
 check_method_decl :: StaticClassEnv -> Identifier -> Identifier -> [Identifier] -> [Type] -> MethodDecl -> Either String ()
-check_method_decl clzEnv cname superName fieldNames fieldTypes (Method_Decl ty name tyArgs body) =
+check_method_decl clzEnv cname superName fieldNames fieldTypes (Method_Decl _ ty name tyArgs body) =
   let vars   = map snd tyArgs
       varTys = map fst tyArgs
       tyenv = extend_tyenv_with vars varTys 

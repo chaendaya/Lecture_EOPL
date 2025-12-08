@@ -19,11 +19,11 @@ data ClassDecl =
 
 -- Method_Decl: return type, method-name, parameter-types and names, body
 data MethodDecl = 
-    Method_Decl Type Identifier [ (Type, Identifier) ] Exp  
+    Method_Decl Bool Type Identifier [ (Type, Identifier) ] Exp  -- isStatic
   | AbstractMethod_Decl Type Identifier [ (Type, Identifier) ]  
   deriving Show
 
-idFromMethodDecl (Method_Decl _ mName _ _)        = mName
+idFromMethodDecl (Method_Decl _ _ mName _ _)        = mName
 idFromMethodDecl (AbstractMethod_Decl _ mName _) = mName
 
 data Exp =

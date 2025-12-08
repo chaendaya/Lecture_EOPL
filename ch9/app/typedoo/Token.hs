@@ -45,6 +45,7 @@ data Token =
   | INTERFACE -- interface (new)
   | IMPLEMENTS -- implements (new)
   | METHOD -- method
+  | STATIC -- staticmethod
   | FIELD  -- field
   | NEW    -- new
   | SEND   -- send
@@ -107,6 +108,7 @@ keywords =
     (INTERFACE, "interface"),
     (IMPLEMENTS, "implements"),
     (METHOD, "method"),
+    (STATIC, "staticmethod"),
     (FIELD, "field"),
     (NEW, "new"),
     (SEND, "send"),
