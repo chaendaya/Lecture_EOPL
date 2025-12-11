@@ -34,3 +34,11 @@ dequeue :: Queue a -> (a, Queue a)
 dequeue q = if isempty q
             then error "dequeue: fail to dequeue from the empty queue"
             else (head q, tail q)
+
+
+toList :: Queue a -> [a]
+toList q
+  | isempty q = []
+  | otherwise =
+      let (x, q') = dequeue q
+      in x : toList q'

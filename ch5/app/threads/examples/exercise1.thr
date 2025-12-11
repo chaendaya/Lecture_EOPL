@@ -1,0 +1,4 @@
+let t1 = spawn ( proc ( tid )
+                   print ( tid ) )
+in
+print ( t1 )

@@ -33,9 +33,10 @@ apply_cont :: Cont -> ExpVal -> Store -> SchedState -> (FinalAnswer, Store)
 apply_cont cont val store sched =
   if time_expired sched
   then
-    let sched' = place_on_ready_queue
-                   (apply_cont cont val)
-                   sched
+    let info = current_info sched
+        sched' = place_on_ready_queue
+                    (Thread info (apply_cont cont val)) 
+                    sched
     in  run_next_thread store sched'
     
   else
@@ -87,18 +88,36 @@ apply_cont cont val store sched =
 
     apply_cont' (Spawn_Cont saved_cont) val store sched =
       let proc1 = expval_proc val
-          sched' = place_on_ready_queue
-                       (apply_procedure_k proc1 (Num_Val 28) End_Subthread_Cont)
-                       sched
-      in  apply_cont saved_cont (Num_Val 73) store sched' 
+          -- fresh tid
+          child_tid = the_next_tid sched
+          -- parent tid
+          parent_tid = tid_self (current_info sched)
+          -- child thread
+          child_info = 
+            ThreadInfo { tid_self = child_tid,
+                         tid_parent = parent_tid
+                       }
+          child_thread = 
+            Thread { thread_info = child_info,
+                     thread_fun = (apply_procedure_k 
+                                      proc1 
+                                      (Num_Val child_tid) 
+                                      End_Subthread_Cont)
+                   }
+          -- enqueue child
+          sched1 = sched { the_next_tid = child_tid + 1 }
+          sched2 = place_on_ready_queue child_thread sched1
+      in  apply_cont saved_cont (Num_Val child_tid) store sched2 
 
     apply_cont' (Wait_Cont saved_cont) val store sched =
-      wait_for_mutex (expval_mutex val)
-        (apply_cont saved_cont (Num_Val 52)) store sched
+      let info = current_info sched
+          th = Thread info (apply_cont saved_cont (Num_Val 52))
+      in wait_for_mutex (expval_mutex val) th store sched
 
     apply_cont' (Signal_Cont saved_cont) val store sched =
-      signal_mutex (expval_mutex val)
-        (apply_cont saved_cont (Num_Val 53)) store sched
+      let info = current_info sched
+          th = Thread info (apply_cont saved_cont (Num_Val 53))
+      in signal_mutex (expval_mutex val) th store sched
 
     apply_cont' (End_Subthread_Cont) val store sched =
       run_next_thread store sched
@@ -166,10 +185,9 @@ value_of_k (Spawn_Exp exp) env cont store sched =
   value_of_k exp env (Spawn_Cont cont) store sched
 
 value_of_k (Yield_Exp) env cont store sched =
-  let yieldsched =
-        place_on_ready_queue
-          (apply_cont cont (Num_Val 99))
-          sched
+  let info = current_info sched
+      th = Thread info (apply_cont cont (Num_Val 99))
+      yieldsched = place_on_ready_queue th sched
   in  run_next_thread store yieldsched 
 
 value_of_k (Mutex_Exp) env cont store sched =

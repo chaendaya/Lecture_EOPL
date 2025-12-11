@@ -1,0 +1,16 @@
+let m = mutex ( )
+in
+begin
+  spawn ( proc ( tid )
+            begin
+              wait ( m );
+              print ( tid );
+              signal ( m )
+            end );
+  spawn ( proc ( tid )
+            begin
+              wait ( m );
+              print ( tid );
+              signal ( m )
+            end )
+end

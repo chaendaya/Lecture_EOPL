@@ -1,0 +1,10 @@
+begin
+  spawn ( proc ( tid )
+            begin
+              print ( tid );
+              yield ( );
+              print ( tid )
+            end );
+  spawn ( proc ( tid )
+            print ( tid ) )
+end

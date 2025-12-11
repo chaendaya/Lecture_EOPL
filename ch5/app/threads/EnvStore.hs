@@ -67,7 +67,17 @@ data Mutex = Mutex Location Location -- binary semaphores: Loc to Bool, Loc to (
              deriving Show
 
 -- Threads
-type Thread = Store -> SchedState -> (FinalAnswer, Store)
+-- type Thread = Store -> SchedState -> (FinalAnswer, Store)
+
+data ThreadInfo = ThreadInfo {
+  tid_self :: Int,
+  tid_parent :: Int  
+}
+
+data Thread = Thread {
+  thread_info :: ThreadInfo,
+  thread_fun :: Store -> SchedState -> (FinalAnswer, Store)
+}
 
 -- Scheduler states
 data SchedState =
@@ -75,7 +85,9 @@ data SchedState =
    the_ready_queue :: Queue Thread,
    the_final_answer :: Maybe FinalAnswer,
    the_max_time_slice :: Integer,
-   the_time_remaining :: Integer
+   the_time_remaining :: Integer,
+   the_next_tid :: Int,
+   current_info :: ThreadInfo
   }
 
 -- In Interp.hs

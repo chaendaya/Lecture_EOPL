@@ -28,7 +28,7 @@ wait_for_mutex mutex thread store sched =
   in
     if b
     then run_next_thread then_store' sched
-    else thread else_store' sched
+    else (thread_fun thread) else_store' sched
 
 signal_mutex :: Mutex -> Thread -> Store -> SchedState -> (FinalAnswer, Store)
 signal_mutex mutex thread store sched = 
@@ -42,12 +42,12 @@ signal_mutex mutex thread store sched =
   in if b
      then if isempty q
              then let store' = setref store ref_to_closed (Bool_Val False)
-                  in  thread store' sched
+                  in  (thread_fun thread) store' sched
              else dequeueWithFun q
                     (\first_waiting_thread other_waiting_threads store1 sched1 ->
                        let sched1' = place_on_ready_queue first_waiting_thread sched1
                            store1' = setref store1 ref_to_wait_queue
                                         (Queue_Val other_waiting_threads)
-                       in thread store1' sched1') store sched
-     else thread store sched
+                       in (thread_fun thread) store1' sched1') store sched
+     else (thread_fun thread) store sched
           
