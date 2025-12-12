@@ -50,7 +50,7 @@ doProcess verbose fileName = do
 
   case errOrType of
     Left err -> error $ "Type check failure: " ++ err
-    Right ty ->
+    Right (ty, typedProgram) ->
      do putStrLn (show ty)
-        let val = value_of_program program
+        let val = value_of_program typedProgram
         print val

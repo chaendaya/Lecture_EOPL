@@ -60,7 +60,7 @@ value_of class_env (Letrec_Exp letbindings letrec_body) env store =
     (extend_env_rec (mkUntypedLetRecBindings letbindings) env) store
 
 value_of class_env (Proc_Exp var body) env store =
-  (Proc_Val (procedure var body env),store)
+  (Proc_Val (procedure (mkUntyped var) body env),store)
 
 value_of class_env (Call_Exp rator rands) env store =
   let (val1,store1) = value_of class_env rator env store
@@ -98,33 +98,26 @@ value_of class_env (Self_Exp) env store =
       self_obj = denval_self denval
   in  (Object_Val self_obj, store1)
 
-value_of class_env (Method_Call_Exp obj_exp method_name args) env store =
-  let -- 수신 객체 평가
+value_of class_env (Method_Call_Exp obj_exp obj_type method_name args) env store =
+  let -- 1) 수신 객체 평가
       (obj_val,store1) = value_of class_env obj_exp env store
       obj = expval_obj obj_val
       
-      -- 인자들 평가
+      -- 2) 인자들 평가
       (args_val,store2) = foldl (value_of_arg class_env env) ([],store1) args
 
-      -- 동적 클래스 이름 및 정적 타입 조사
+      -- 3) 동적 클래스 이름 및 정적 타입 조사
       dyn_class = object_class_name obj
-      static_type = 
-        case obj_exp of
-          Var_Exp x -> let (den,_) = apply_env env store2 x
-                       in case denval_type den of
-                            Just (TyClass cname) -> Just cname
-                            _                    -> Nothing
-          _ -> Nothing
       
-      -- 실제로 사용할 메서드 선택
+      -- 4) 실제로 사용할 메서드 선택
       chosen_method =
-        case static_type of
-          Just cname -> 
+        case obj_type of
+          Just (TyClass cname) -> 
             -- 정적 타입에서 먼저 메서드 찾기
             let m_static = find_method cname method_name class_env 
             in if method_is_static m_static
-                then m_static  -- static이면 : "x의 정적 타입"에서 찾은 메서드 사용
-                else find_method dyn_class method_name class_env  -- 아니면 : 동적 디스패치 -> 동적 클래스에서 다시 찾기
+                then m_static                                         -- "x의 정적 타입"에서 찾은 메서드 사용
+                else find_method dyn_class method_name class_env      -- 동적 디스패치 -> 동적 클래스에서 다시 찾기
           Nothing ->
             -- 정적 타입을 모르면 그냥 dynamic dispatch
             find_method dyn_class method_name class_env
@@ -189,13 +182,9 @@ apply_procedure proc args class_env store =
           mkRefToArg (locs,store) arg = 
             let (loc,store') = newref store arg in
               (locs++[loc],store')
-      
-      vars = proc_vars proc   -- [(Type, Identifier)]
-      ids = map snd vars
-      tys = map fst vars
-      env' = extend_env_with_type ids locs tys (saved_env proc)
   in
-    value_of class_env (proc_body proc) env' store1
+    value_of class_env (proc_body proc) 
+      (extend_env (proc_vars proc) locs (saved_env proc)) store1
 
 apply_method :: Method -> Object -> [ExpVal] -> ClassEnv -> Store -> (ExpVal, Store)
 apply_method (AMethod isStatic vars (Just body) (Just super_name) field_names) self args class_env store = 
@@ -206,23 +195,17 @@ apply_method (AMethod isStatic vars (Just body) (Just super_name) field_names) s
             let (loc,store') = newref store arg in
               (refs_to_args++[loc],store')
 
-      param_ids = map snd vars
-      param_tys = map fst vars
-
-      field_ids = map snd field_names
-      field_tys = map fst field_names
-
       object_env = 
-        extend_env_with_type param_ids refs_to_args param_tys   -- type과 저장
+        extend_env (map snd vars) refs_to_args
           (extend_env_with_self_and_super self super_name
-            (extend_env_with_type field_ids (object_fields self) field_tys   -- type 과 저장
+            (extend_env (map snd field_names) (object_fields self)
               empty_env))
         
   in value_of class_env body object_env store'
 
 -- Utility
-mkUntypedLetRecBindings :: LetRecBindings -> [ (Identifier, [(Type, Identifier)], Exp) ]  -- 인자 타입 정보는 유지
-mkUntypedLetRecBindings = map (\(_,x,y,z) -> (x,y,z))
+mkUntypedLetRecBindings :: LetRecBindings -> [ (Identifier, [Identifier], Exp) ]
+mkUntypedLetRecBindings = map (\(_,x,y,z) -> (x, mkUntyped y,z))
 
 mkUntyped :: [(Type, Identifier)] -> [Identifier]
 mkUntyped = map snd

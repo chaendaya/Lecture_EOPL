@@ -1,0 +1,31 @@
+class c1 extends object
+  method int initialize() 1
+
+  method int m1() 11
+  staticmethod int m2() 21
+
+  method int test_self()
+    send self m2()
+
+
+class c2 extends c1
+  method int m1() 12
+  staticmethod int m2() 22
+
+
+let a = send new c2() m1()
+    b = send new c2() m2()
+
+    f = proc (x : int) new c2()
+in
+let
+    c = send (f 0) m1()
+    d = send (f 0) m2()
+    e = send let x = new c1() in x   m1()
+    f2 = send let x = new c1() in x  m2()
+    o = new c2()
+in
+let
+    g = send o test_self()
+
+in list(a, b, c, d, e, f2, g)

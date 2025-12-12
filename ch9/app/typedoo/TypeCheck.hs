@@ -7,168 +7,224 @@ import TyEnv
 import EnvStore (DenVal(SelfObject_Val), append_field_names)
 
 --
-typeCheck :: Program -> IO (Either String Type)
-typeCheck program = return (type_of_program program )
+typeCheck :: Program -> IO (Either String (Type, Program))
+typeCheck program = return (type_of_program program)
 
 --
-type_of_program :: Program -> Either String Type
+type_of_program :: Program -> Either String (Type, Program)
 type_of_program (Program classDecls exp) =
   do clzEnv <- initializeStaticClassEnv classDecls
      check_class_decls clzEnv classDecls
-     type_of clzEnv exp initTyEnv
+     (ty, typedExp) <- type_of clzEnv exp initTyEnv
+     Right (ty, Program classDecls typedExp)
 
 initTyEnv = extend_tyenv "x" TyInt empty_tyenv
 
 --
-type_of :: StaticClassEnv -> Exp -> TyEnv -> Either String Type
+type_of :: StaticClassEnv -> Exp -> TyEnv -> Either String (Type, Exp)
 
-type_of clzEnv (Const_Exp n) tyenv = Right TyInt
+type_of clzEnv e@(Const_Exp n) tyenv = Right (TyInt, e)
 
-type_of clzEnv (Var_Exp var) tyenv = apply_tyenv tyenv var
+type_of clzEnv e@(Var_Exp var) tyenv = do
+  ty <- apply_tyenv tyenv var
+  Right (ty, e)
 
 type_of clzEnv (Diff_Exp exp1 exp2) tyenv =
-  do ty1 <- type_of clzEnv exp1 tyenv
-     ty2 <- type_of clzEnv exp2 tyenv
+  do (ty1, exp1') <- type_of clzEnv exp1 tyenv
+     (ty2, exp2') <- type_of clzEnv exp2 tyenv
      case ty1 of
        TyInt -> case ty2 of
-                 TyInt -> Right TyInt
+                 TyInt -> Right (TyInt, Diff_Exp exp1' exp2')
                  _     -> expectedButErr TyInt ty2 exp2
        _ -> expectedButErr TyInt ty1 exp1
 
 type_of clzEnv (Sum_Exp exp1 exp2) tyenv =
-  do ty1 <- type_of clzEnv exp1 tyenv
-     ty2 <- type_of clzEnv exp2 tyenv
+  do (ty1, exp1') <- type_of clzEnv exp1 tyenv
+     (ty2, exp2') <- type_of clzEnv exp2 tyenv
      case ty1 of
        TyInt -> case ty2 of
-                 TyInt -> Right TyInt
+                 TyInt -> Right (TyInt, Sum_Exp exp1' exp2')
                  _     -> expectedButErr TyInt ty2 exp2
        _ -> expectedButErr TyInt ty1 exp1
 
 type_of clzEnv (IsZero_Exp exp1) tyenv =
-  do ty1 <- type_of clzEnv exp1 tyenv
+  do (ty1, exp1') <- type_of clzEnv exp1 tyenv
      case ty1 of
-       TyInt -> Right TyBool
+       TyInt -> Right (TyBool, IsZero_Exp exp1')
        _     -> expectedButErr TyInt ty1 exp1
 
 type_of clzEnv exp@(If_Exp exp1 exp2 exp3) tyenv =
-  do condTy <- type_of clzEnv exp1 tyenv
-     thenTy <- type_of clzEnv exp2 tyenv
-     elseTy <- type_of clzEnv exp3 tyenv
+  do (condTy, exp1') <- type_of clzEnv exp1 tyenv
+     (thenTy, exp2') <- type_of clzEnv exp2 tyenv
+     (elseTy, exp3') <- type_of clzEnv exp3 tyenv
      case condTy of
        TyBool -> if equalType thenTy elseTy
-                 then Right thenTy
+                 then Right (thenTy, If_Exp exp1' exp2' exp3')
                  else inequalIfBranchTyErr thenTy elseTy exp2 exp
 
        _      -> expectedButErr TyBool condTy exp1
 
 type_of clzEnv (Let_Exp letBindings body) tyenv =
-  do tys <- types_of_exps clzEnv (map snd letBindings) tyenv 
-     type_of clzEnv body 
-       (extend_tyenv_with (map fst letBindings) tys tyenv)
+  do (tys, rhs') <- types_of_exps clzEnv (map snd letBindings) tyenv 
+     (bodyTy, body') <- type_of clzEnv body 
+                      (extend_tyenv_with (map fst letBindings) tys tyenv)
+     let letBindings' = zip (map fst letBindings) rhs'
+     Right (bodyTy, Let_Exp letBindings' body')
 
+-- type_of clzEnv (Letrec_Exp letrecBindings letrec_body) tyenv =
+--   let vars = map (\(_, f, _, _) -> f) letrecBindings 
+--       tys  = map (\(resTy, _, tyVarList, _) -> 
+--                      TyFun (map fst tyVarList) resTy) letrecBindings 
+--       tyenv1 = extend_tyenv_with vars tys tyenv  
+--   in do mapM_ (\(resTy, f, tyVarList, proc_body)-> 
+--                   do let argTys = map fst tyVarList 
+--                      let argVars = map snd tyVarList
+--                      let tyenv2 = extend_tyenv_with argVars argTys tyenv1
+--                      procbodyTy <- type_of clzEnv proc_body tyenv2
+--                      if equalType resTy procbodyTy
+--                      then Right ()
+--                      else expectedButErr resTy procbodyTy proc_body) letrecBindings 
+--         type_of clzEnv letrec_body tyenv1
 type_of clzEnv (Letrec_Exp letrecBindings letrec_body) tyenv =
-  let vars = map (\(_, f, _, _) -> f) letrecBindings 
-      tys  = map (\(resTy, _, tyVarList, _) -> 
-                     TyFun (map fst tyVarList) resTy) letrecBindings 
-      tyenv1 = extend_tyenv_with vars tys tyenv  
-  in do mapM_ (\(resTy, f, tyVarList, proc_body)-> 
-                  do let argTys = map fst tyVarList 
-                     let argVars = map snd tyVarList
-                     let tyenv2 = extend_tyenv_with argVars argTys tyenv1
-                     procbodyTy <- type_of clzEnv proc_body tyenv2
-                     if equalType resTy procbodyTy
-                     then Right ()
-                     else expectedButErr resTy procbodyTy proc_body) letrecBindings 
-        type_of clzEnv letrec_body tyenv1
-
+  let
+    vars = [ f | (_, f, _, _) <- letrecBindings ]
+    tys  = [ TyFun (map fst tyVarList) resTy
+           | (resTy, _, tyVarList, _) <- letrecBindings
+           ]
+    tyenv1 = extend_tyenv_with vars tys tyenv
+  in do
+    let checkAndAnnotate (resTy, f, tyVarList, proc_body) = do
+          let argTys  = map fst tyVarList
+              argVars = map snd tyVarList
+              tyenv2  = extend_tyenv_with argVars argTys tyenv1
+          (procBodyTy, proc_body') <- type_of clzEnv proc_body tyenv2
+          if equalType resTy procBodyTy
+            then Right (resTy, f, tyVarList, proc_body')
+            else expectedButErr resTy procBodyTy proc_body
+    letrecBindings' <- mapM checkAndAnnotate letrecBindings
+    (bodyTy, body') <- type_of clzEnv letrec_body tyenv1
+    Right (bodyTy, Letrec_Exp letrecBindings' body')
+  
 type_of clzEnv (Proc_Exp tyVarList body) tyenv =
   do let argTys = map fst tyVarList
          vars   = map snd tyVarList
-     bodyTy <- type_of clzEnv body (extend_tyenv_with vars argTys tyenv)
-     Right (TyFun argTys bodyTy)
+     (bodyTy, body') <- type_of clzEnv body (extend_tyenv_with vars argTys tyenv)
+     Right (TyFun argTys bodyTy, Proc_Exp tyVarList body')
 
 type_of clzEnv exp@(Call_Exp rator randList) tyenv =
-  do ratorTy  <- type_of clzEnv rator tyenv
-     randTys <- types_of_exps clzEnv randList tyenv
-     type_of_call clzEnv ratorTy randTys randList exp
+  do (ratorTy, rator')  <- type_of clzEnv rator tyenv
+     (randTys, randList') <- types_of_exps clzEnv randList tyenv
+     resTy <- type_of_call clzEnv ratorTy randTys randList exp
+     Right (resTy, Call_Exp rator' randList')
 
 type_of clzEnv (Block_Exp []) tyenv = 
   Left $ "Empty block is not allowed"
 
+-- type_of clzEnv (Block_Exp (exp:expList)) tyenv =
+--   let type_of_begins exp expList =
+--        do ty <- type_of clzEnv exp tyenv 
+--           if null expList then Right ty
+--           else type_of_begins (head expList) (tail expList)
+--   in  type_of_begins exp expList
 type_of clzEnv (Block_Exp (exp:expList)) tyenv =
-  let type_of_begins exp expList =
-       do ty <- type_of clzEnv exp tyenv 
-          if null expList then Right ty
-          else type_of_begins (head expList) (tail expList)
-  in  type_of_begins exp expList
+  let
+    type_of_begins :: Exp -> [Exp] -> Either String (Type, [Exp])
+    type_of_begins e [] = do
+      (ty, e') <- type_of clzEnv e tyenv
+      Right (ty, [e'])
+    type_of_begins e (e2:es) = do
+      (_ty1, e1') <- type_of clzEnv e tyenv
+      (tyLast, es') <- type_of_begins e2 es
+      Right (tyLast, e1' : es')
+  in do
+    (lastTy, exps') <- type_of_begins exp expList
+    Right (lastTy, Block_Exp exps')
 
 type_of clzEnv exp@(Set_Exp var rhsExp) tyenv =
   do lhsTy <- apply_tyenv tyenv var 
-     rhsTy <- type_of clzEnv rhsExp tyenv 
+     (rhsTy, rhsExp') <- type_of clzEnv rhsExp tyenv 
      check_is_subtype clzEnv rhsTy lhsTy exp 
-     Right TyVoid
+     Right (TyVoid, Set_Exp var rhsExp')
 
 type_of clzEnv (List_Exp []) tyenv =
   Left $ "Cannot type check the empty list"
 
-type_of clzEnv (List_Exp (exp:expList)) tyenv =
-  do ty <- type_of clzEnv exp tyenv 
-     let type_of_list expList =
-          if null expList then Right (TyListOf ty)
-          else do let exp = head expList
-                  ty1 <- type_of clzEnv exp tyenv 
-                  if equalType ty ty1 then type_of_list (tail expList)
-                  else expectedButErr ty ty1 exp
-     type_of_list expList 
+-- type_of clzEnv (List_Exp (exp:expList)) tyenv =
+--   do ty <- type_of clzEnv exp tyenv 
+--      let type_of_list expList =
+--           if null expList then Right (TyListOf ty)
+--           else do let exp = head expList
+--                   ty1 <- type_of clzEnv exp tyenv 
+--                   if equalType ty ty1 then type_of_list (tail expList)
+--                   else expectedButErr ty ty1 exp
+--      type_of_list expList 
+type_of clzEnv (List_Exp exps) tyenv = do
+  (tys, exps') <- types_of_exps clzEnv exps tyenv
+  let elemTy = head tys
+  case firstMismatch elemTy (zip tys exps') of
+    Nothing ->
+      Right (TyListOf elemTy, List_Exp exps')
+    Just (badTy, badExp) ->
+      expectedButErr elemTy badTy badExp
+  where
+    firstMismatch :: Type -> [(Type, Exp)] -> Maybe (Type, Exp)
+    firstMismatch _ [] = Nothing
+    firstMismatch t ((ty,e):rest)
+      | equalType t ty = firstMismatch t rest
+      | otherwise      = Just (ty, e)
 
 type_of clzEnv exp@(New_Object_Exp cname expList) tyenv =
-  do argTys <- types_of_exps clzEnv expList tyenv
+  do (argTys, expList') <- types_of_exps clzEnv expList tyenv
      case lookup_static_class clzEnv cname of 
         Nothing -> Left $ "Class " ++ cname ++ " is not found in " ++ show exp
         Just (AStaticClass _ _ _ _ mtyenv) -> 
           do mty <- find_method_type clzEnv cname initialize 
              type_of_call clzEnv mty argTys expList exp
-             Right (TyClass cname)
+             Right (TyClass cname, New_Object_Exp cname expList')
         Just (AStaticInterface _) -> Left $ "Cannot instantiate an interface: " ++ cname
 
-type_of clzEnv exp@(Method_Call_Exp exp1 mname expList) tyenv =
-  do argTys <- types_of_exps clzEnv expList tyenv 
-     objTy <- type_of clzEnv exp1 tyenv 
+type_of clzEnv exp@(Method_Call_Exp exp1 _ mname expList) tyenv =
+  do (argTys, expList') <- types_of_exps clzEnv expList tyenv 
+     (objTy, exp1') <- type_of clzEnv exp1 tyenv 
      case objTy of  -- Note: no check like this in the EOPL book
        TyClass clzName ->
          do mty <- find_method_type clzEnv clzName mname
-            type_of_call clzEnv mty argTys expList exp
+            resTy <- type_of_call clzEnv mty argTys expList exp
+            Right (resTy, Method_Call_Exp exp1' (Just objTy) mname expList')
        _ -> expectedClasstyButErr objTy exp 
 
 type_of clzEnv exp@(Super_Call_Exp mname expList) tyenv =
-  do argTys <- types_of_exps clzEnv expList tyenv 
+  do (argTys, expList') <- types_of_exps clzEnv expList tyenv 
      objTy <- apply_tyenv tyenv self
      case objTy of  -- Note: no check like this in the EOPL book
        TyClass clzName ->
          do mty <- find_method_type clzEnv clzName mname
-            type_of_call clzEnv mty argTys expList exp
+            resTy <- type_of_call clzEnv mty argTys expList exp
+            Right (resTy, Super_Call_Exp mname expList')
        _ -> expectedClasstyButErr objTy exp 
 
-type_of clzEnv Self_Exp tyenv = apply_tyenv tyenv self
+type_of clzEnv Self_Exp tyenv = do
+  ty <- apply_tyenv tyenv self
+  Right (ty, Self_Exp)
 
 type_of clzEnv (Cast_Exp exp cname) tyenv =
-  do objTy <- type_of clzEnv exp tyenv
+  do (objTy, exp') <- type_of clzEnv exp tyenv
      case objTy of 
-      TyClass _ -> Right (TyClass cname) -- objTy 
+      TyClass _ -> Right (TyClass cname, Cast_Exp exp' cname) -- objTy 
       _ -> expectedButErr (TyClass "...") objTy exp
 
 type_of clzEnv (InstanceOf_Exp exp cname) tyenv =
-  do objTy <- type_of clzEnv exp tyenv
+  do (objTy, exp') <- type_of clzEnv exp tyenv
      case objTy of 
-      TyClass _ -> Right TyBool
+      TyClass _ -> Right (TyBool, InstanceOf_Exp exp' cname)
       _ -> expectedButErr (TyClass "...") objTy exp
 
-types_of_exps :: StaticClassEnv -> [Exp] -> TyEnv -> Either String [Type]
-types_of_exps clzEnv [] tyenv = Right []
+types_of_exps :: StaticClassEnv -> [Exp] -> TyEnv -> Either String ([Type],[Exp])
+types_of_exps clzEnv [] tyenv = Right ([],[])
 types_of_exps clzEnv (exp:exps) tyenv = 
-  do ty <- type_of clzEnv exp tyenv 
-     tys <- types_of_exps clzEnv exps tyenv 
-     Right (ty:tys)
+  do (ty, exp') <- type_of clzEnv exp tyenv 
+     (tys, exps') <- types_of_exps clzEnv exps tyenv 
+     Right (ty:tys, exp':exps')
 
 type_of_call :: StaticClassEnv -> Type -> [Type] -> [Exp] -> Exp -> Either String Type
 type_of_call clzEnv (TyFun argTyList _resTy) randTyList argList exp
@@ -306,7 +362,7 @@ check_method_decl clzEnv cname superName fieldNames fieldTypes (Method_Decl _ ty
       tyenv = extend_tyenv_with vars varTys 
                 (extend_tyenv_with_self_and_super (TyClass cname) superName 
                   (extend_tyenv_with fieldNames fieldTypes empty_tyenv)) in
-    do bodyTy <- type_of clzEnv body tyenv
+    do (bodyTy, _) <- type_of clzEnv body tyenv
        check_is_subtype clzEnv bodyTy ty body
        if name == initialize then Right ()
        else

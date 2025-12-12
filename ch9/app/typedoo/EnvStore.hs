@@ -13,22 +13,17 @@ import Data.List (elemIndex,lookup)
 data Env =
     Empty_env
   | Extend_env [Identifier] [Location] Env
-  | Extend_env_with_type [Identifier] [Location] [Type] Env   -- typed 확장
-  | Extend_env_rec [(Identifier,[(Type,Identifier)],Exp)] Env 
+  | Extend_env_rec [(Identifier,[Identifier],Exp)] Env 
   | Extend_env_with_self_and_super Object Identifier Env
 
 apply_env :: Env -> Store -> Identifier -> (DenVal, Store)
 apply_env Empty_env store search_var = error (search_var ++ " is not found.")
 apply_env (Extend_env saved_vars saved_vals saved_env) store search_var = 
   if search_var `elem` saved_vars
-    then (Loc_Val (saved_vals !! (fromJust $ Data.List.elemIndex search_var saved_vars)) Nothing,store)
+    then (Loc_Val (saved_vals !! (fromJust $ Data.List.elemIndex search_var saved_vars)),store)
     else apply_env saved_env store search_var
-apply_env (Extend_env_with_type saved_vars saved_vals saved_tys saved_env) store search_var =
-  case elemIndex search_var saved_vars of
-    Just i  -> (Loc_Val (saved_vals !! i) (Just (saved_tys !! i)), store)
-    Nothing -> apply_env saved_env store search_var
 apply_env (Extend_env_rec idIdExpList saved_env) store search_var
-  | isIn      = let (l,store') = newref store procVal in (Loc_Val l Nothing, store')  -- 함수 이름 자체에는 타입 없이
+  | isIn      = let (l,store') = newref store procVal in (Loc_Val l, store')
   | otherwise = apply_env saved_env store search_var
   where isIn      = or [ p_name==search_var | (p_name,b_var,p_body) <- idIdExpList ]
         procVal = head [ Proc_Val (procedure b_var p_body (Extend_env_rec idIdExpList saved_env)) 
@@ -45,10 +40,7 @@ empty_env = Empty_env
 extend_env :: [Identifier] -> [Location] -> Env -> Env
 extend_env xs vs env = Extend_env xs vs env
 
-extend_env_with_type :: [Identifier] -> [Location] -> [Type] -> Env -> Env
-extend_env_with_type xs vs tys env = Extend_env_with_type xs vs tys env
-
-extend_env_rec :: [(Identifier,[(Type, Identifier)],Exp)] -> Env -> Env
+extend_env_rec :: [(Identifier,[(Identifier)],Exp)] -> Env -> Env
 extend_env_rec idIdListExpList env = Extend_env_rec idIdListExpList env
 
 extend_env_with_self_and_super :: Object -> Identifier -> Env -> Env
@@ -80,17 +72,19 @@ showWithSp (x:xs) = show x ++ " " ++ showWithSp xs
 
 -- Denoted values
 data DenVal = 
-    Loc_Val {denval_loc :: Location, denval_type :: Maybe Type} -- Ref(ExpVal) , 정적 타입
-  | SelfObject_Val {denval_self :: Object} -- for %self
+    Loc_Val {denval_loc :: Location}     -- Ref(ExpVal) , 정적 타입
+  | SelfObject_Val {denval_self :: Object}          -- for %self
   | SuperClassName_Val {denval_super :: Identifier} -- for %super
 
 -- Procedure values : data structures
-data Proc = Procedure {proc_vars :: [(Type, Identifier)], proc_body :: Exp, saved_env :: Env}   -- Type 포함
+data Proc = Procedure {proc_vars :: [Identifier],
+                       proc_body :: Exp, 
+                       saved_env :: Env}
 
 instance Show Proc where
   show (Procedure vars body saved_env) = show "<proc>"
 
-procedure :: [(Type, Identifier)] -> Exp -> Env -> Proc
+procedure :: [Identifier] -> Exp -> Env -> Proc
 procedure vars body env = Procedure vars body env
 
 -- Object values : data structures

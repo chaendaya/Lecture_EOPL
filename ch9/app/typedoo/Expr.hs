@@ -43,7 +43,7 @@ data Exp =
 
   -- New kinds of expressions in classes
   | New_Object_Exp Identifier [Exp]      -- new Identifier ( Exp1, ..., Expn )
-  | Method_Call_Exp Exp Identifier [Exp] -- Exp.Identifier ( Exp1, ..., Expn )
+  | Method_Call_Exp Exp (Maybe Type) Identifier [Exp] -- Exp.Identifier ( Exp1, ..., Expn )
   | Super_Call_Exp Identifier [Exp]      -- super.Identifier ( Exp1, ..., Expn )
   | Self_Exp                             -- self
   | Cast_Exp Exp Identifier              -- (Type) Exp
